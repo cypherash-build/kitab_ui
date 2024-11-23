@@ -1,8 +1,10 @@
 // ignore_for_file: avoid_print
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
@@ -41,20 +43,26 @@ class KiTabHomeScreen extends StatefulWidget {
 }
 
 class _KiTabHomeScreenState extends State<KiTabHomeScreen> {
-  Future<List<FileSystemEntity>> _getBooks() async {
+  late Future<List<String>> _booksFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _booksFuture = _getBookPaths();
+  }
+
+  Future<List<String>> _getBookPaths() async {
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final booksDir = Directory('${directory.path}/books');
-      // Check if the directory exists
-      if (booksDir.existsSync()) {
-        return booksDir.listSync();
-      } else {
-        // Handle the case where the directory doesn't exist
-        print('Books directory not found!');
-        return [];
-      }
+      // Get a list of all files in the assets/books folder
+      final manifestContent = await rootBundle.loadString('AssetManifest.json');
+      final manifestMap = json.decode(manifestContent) as Map<String, dynamic>;
+      final pdfPaths = manifestMap.keys
+          .where((path) =>
+              path.startsWith('assets/books/') && path.endsWith('.pdf'))
+          .toList();
+      return pdfPaths;
     } catch (e) {
-      print('Error getting books: $e');
+      print('Error getting book paths: $e');
       return [];
     }
   }
@@ -85,19 +93,18 @@ class _KiTabHomeScreenState extends State<KiTabHomeScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<FileSystemEntity>>(
-        future: _getBooks(),
+      body: FutureBuilder<List<String>>(
+        future: _getBookPaths(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else {
-            final books = snapshot.data ?? [];
-            if (books.isEmpty) {
-              // Display a message when no books are found
+            final bookPaths = snapshot.data ?? [];
+            if (bookPaths.isEmpty) {
               return const Center(
-                child: Text('No books found. Please add some books.'),
+                child: Text('No books found in assets.'),
               );
             } else {
               return GridView.builder(
@@ -108,19 +115,14 @@ class _KiTabHomeScreenState extends State<KiTabHomeScreen> {
                   mainAxisSpacing: 16.0,
                   childAspectRatio: 0.6,
                 ),
-                itemCount: books.length,
+                itemCount: bookPaths.length,
                 itemBuilder: (context, index) {
-                  final book = books[index];
-                  if (book is File) {
-                    return BookItem(
-                      title: book.path.split('/').last,
-                      author:
-                          'Unknown Author', // Replace with author extraction
-                      filePath: book.path,
-                    );
-                  } else {
-                    return const SizedBox.shrink();
-                  }
+                  final bookPath = bookPaths[index];
+                  return BookItem(
+                    title: bookPath.split('/').last,
+                    author: 'Unknown Author', // Replace with author extraction
+                    filePath: bookPath,
+                  );
                 },
               );
             }
@@ -149,8 +151,8 @@ class BookItem extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: SfPdfViewer.file(
-            File(filePath),
+          child: SfPdfViewer.asset(
+            filePath,
           ),
         ),
         const SizedBox(height: 8.0),
