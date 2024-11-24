@@ -176,6 +176,7 @@ class _BookItemState extends State<BookItem> {
 
   Future<void> _renderPdfImage() async {
     try {
+      await Future.delayed(const Duration(milliseconds: 1500));
       final document = await PdfDocument.openAsset(widget.filePath);
       final page = await document.getPage(1);
       final pageImage = await page.render(width: 200, height: 300);
