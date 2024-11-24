@@ -7,9 +7,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:path_provider/path_provider.dart';
+
 import 'package:pdf_render/pdf_render.dart';
+import 'package:pdf_render/pdf_render_widgets.dart';
 
 void main() {
   runApp(const KiTabApp());
@@ -199,9 +199,9 @@ class _BookItemState extends State<BookItem> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: PDFView(
-            filePath: widget.filePath,
-          ),
+          child: image != null
+              ? Image(image: MemoryImage(image!))
+              : const Center(child: CircularProgressIndicator()),
         ),
         const SizedBox(height: 8.0),
         Text(
@@ -233,8 +233,24 @@ class PdfViewerScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('PDF Viewer'),
       ),
-      body: PDFView(
-        filePath: filePath,
+      body: PdfDocumentLoader.openAsset(
+        filePath, // Use assetName for assets
+        documentBuilder: (context, pdfDocument, pageCount) => LayoutBuilder(
+          builder: (context, constraints) => ListView.builder(
+            itemCount: pageCount,
+            itemBuilder: (context, index) => Container(
+              margin: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+              ),
+              child: PdfPageView(
+                pdfDocument: pdfDocument,
+                pageNumber: index + 1,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
