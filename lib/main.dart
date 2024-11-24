@@ -199,9 +199,9 @@ class _BookItemState extends State<BookItem> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: image != null
-              ? Image(image: MemoryImage(image!))
-              : const Center(child: CircularProgressIndicator()),
+          child: PDFView(
+            filePath: widget.filePath,
+          ),
         ),
         const SizedBox(height: 8.0),
         Text(
