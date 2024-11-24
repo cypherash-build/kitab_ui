@@ -2,11 +2,14 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:pdf_render/pdf_render.dart';
 
 void main() {
   runApp(const KiTabApp());
@@ -18,6 +21,7 @@ class KiTabApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'KiTab',
       theme: ThemeData(
         brightness: Brightness.light,
@@ -118,10 +122,22 @@ class _KiTabHomeScreenState extends State<KiTabHomeScreen> {
                 itemCount: bookPaths.length,
                 itemBuilder: (context, index) {
                   final bookPath = bookPaths[index];
-                  return BookItem(
-                    title: bookPath.split('/').last,
-                    author: 'Unknown Author', // Replace with author extraction
-                    filePath: bookPath,
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              PdfViewerScreen(filePath: bookPath),
+                        ),
+                      );
+                    },
+                    child: BookItem(
+                      title: bookPath.split('/').last,
+                      author:
+                          'Unknown Author', // Replace with author extraction
+                      filePath: bookPath,
+                    ),
                   );
                 },
               );
@@ -133,7 +149,7 @@ class _KiTabHomeScreenState extends State<KiTabHomeScreen> {
   }
 }
 
-class BookItem extends StatelessWidget {
+class BookItem extends StatefulWidget {
   final String title;
   final String author;
   final String filePath;
@@ -146,30 +162,79 @@ class BookItem extends StatelessWidget {
   });
 
   @override
+  State<BookItem> createState() => _BookItemState();
+}
+
+class _BookItemState extends State<BookItem> {
+  Uint8List? image;
+
+  @override
+  void initState() {
+    super.initState();
+    _renderPdfImage();
+  }
+
+  Future<void> _renderPdfImage() async {
+    try {
+      final document = await PdfDocument.openAsset(widget.filePath);
+      final page = await document.getPage(1);
+      final pageImage = await page.render(width: 200, height: 300);
+      final image = await pageImage.createImageIfNotAvailable();
+      final bytes = await image.toByteData(format: ImageByteFormat.png);
+
+      if (mounted && bytes != null) {
+        setState(() {
+          this.image = bytes.buffer.asUint8List();
+        });
+      }
+    } catch (e) {
+      print('Error rendering PDF image: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: SfPdfViewer.asset(
-            filePath,
-          ),
+          child: image != null
+              ? Image(image: MemoryImage(image!))
+              : const Center(child: CircularProgressIndicator()),
         ),
         const SizedBox(height: 8.0),
         Text(
-          title,
+          widget.title,
           style: const TextStyle(fontWeight: FontWeight.bold),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4.0),
         Text(
-          author,
+          widget.author,
           style: const TextStyle(fontSize: 12, color: Colors.grey),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
       ],
+    );
+  }
+}
+
+class PdfViewerScreen extends StatelessWidget {
+  final String filePath;
+
+  const PdfViewerScreen({super.key, required this.filePath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('PDF Viewer'),
+      ),
+      body: PDFView(
+        filePath: filePath,
+      ),
     );
   }
 }
