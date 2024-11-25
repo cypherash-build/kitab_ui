@@ -185,10 +185,17 @@ class BookItem extends StatelessWidget {
   }
 }
 
-class PdfViewerScreen extends StatelessWidget {
+class PdfViewerScreen extends StatefulWidget {
   final String filePath;
 
   const PdfViewerScreen({super.key, required this.filePath});
+
+  @override
+  State<PdfViewerScreen> createState() => _PdfViewerScreenState();
+}
+
+class _PdfViewerScreenState extends State<PdfViewerScreen> {
+  final TextEditingController _questionController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -197,8 +204,48 @@ class PdfViewerScreen extends StatelessWidget {
         title: const Text('PDF Viewer'),
       ),
       body: PdfViewer.asset(
-        filePath,
+        widget.filePath,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _showQuestionDialog(context);
+        },
+        child: const Icon(Icons.question_answer),
+      ),
+    );
+  }
+
+  Future<void> _showQuestionDialog(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Ask a Question'),
+          content: TextField(
+            controller: _questionController,
+            decoration: const InputDecoration(hintText: 'Enter your question'),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Ask'),
+              onPressed: () {
+                // TODO: Send the question to the LLM and get the answer
+                String question = _questionController.text;
+                print('Question: $question');
+                // ... (Process the question and display the answer)
+
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
